@@ -1,3 +1,6 @@
+<img width="1742" height="1152" alt="image" src="https://github.com/user-attachments/assets/eab9857c-a56e-48dc-9386-bf80ac90d56c" />
+
+
 <img width="1024" height="1024" alt="image" src="https://github.com/user-attachments/assets/32fa692f-9f21-4431-9db0-06437ad56ef4" />
 
 # Data Processing Steps
