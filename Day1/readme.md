@@ -1,3 +1,11 @@
+## Day 1
+
+### Colab Link
+
+https://colab.research.google.com/drive/15qcte1DpYRwLeaaIJXAsHw0JDXbIzGGw?usp=sharing
+
+
+
 <img width="1742" height="1152" alt="image" src="https://github.com/user-attachments/assets/eab9857c-a56e-48dc-9386-bf80ac90d56c" />
 
 
