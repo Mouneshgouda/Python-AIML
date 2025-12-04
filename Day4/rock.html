@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Supervised Learning Playground</title>
+<style>
+body { font-family: Arial, sans-serif; background-color: #121212; color: #f0f0f0; text-align: center; padding: 20px; }
+h1 { margin-bottom: 10px; }
+button { padding: 10px 16px; margin: 5px; border: none; border-radius: 5px; background-color: #1e90ff; color: white; cursor: pointer; font-size: 14px; }
+button:hover { background-color: #3ea0ff; }
+#tabs button { background-color: #333; }
+#tabs button.active { background-color: #1e90ff; }
+#tab-content { margin-top: 20px; padding: 15px; background-color: #1f1f1f; border-radius: 10px; min-height: 350px; }
+canvas { background-color: #1f1f1f; border: 1px solid #444; margin-top: 15px; }
+input[type="range"] { width: 150px; }
+#scoreboard { margin-top: 15px; font-size: 18px; }
+.icon { width: 30px; vertical-align: middle; }
+</style>
+</head>
+<body>
+
+<h1>🎓 Supervised Learning Playground</h1>
+
+<div id="scoreboard">Score: <span id="score">0</span></div>
+
+<div id="tabs">
+  <button onclick="showTab('decisionTree')" class="active">Decision Tree 🌳</button>
+  <button onclick="showTab('linearRegression')">Linear Regression 📈</button>
+  <button onclick="showTab('kNN')">kNN 📊</button>
+  <button onclick="showTab('logisticRegression')">Logistic Regression ⚖️</button>
+  <button onclick="showTab('svm')">SVM 🧩</button>
+  <button onclick="showTab('randomForest')">Random Forest 🌲</button>
+</div>
+
+<div id="tab-content"></div>
+
+<script>
+let score = 0;
+function updateScore(points){ score += points; document.getElementById('score').textContent = score; }
+
+// ----- Tab Navigation -----
+function showTab(tab) {
+  const tabs = document.querySelectorAll('#tabs button');
+  tabs.forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+
+  if (tab === 'decisionTree') loadDecisionTree();
+  else if (tab === 'linearRegression') loadLinearRegression();
+  else if (tab === 'kNN') loadKNN();
+  else if (tab === 'logisticRegression') loadLogistic();
+  else if (tab === 'svm') loadSVM();
+  else if (tab === 'randomForest') loadRandomForest();
+}
+
+// ------------------ Decision Tree Module ------------------
+function loadDecisionTree() {
+  const content = document.getElementById('tab-content');
+  content.innerHTML = `
+    <h2>Decision Tree 🌳</h2>
+    <p>Detective mystery: Filter suspects to find the culprit!</p>
+    <div id="dt-game"></div>
+    <div id="dt-result"></div>
+  `;
+
+  const suspects = [];
+  for (let i = 1; i <= 15; i++) {
+    suspects.push({
+      id: i,
+      gender: Math.random() < 0.5 ? 'female' : 'male',
+      height: 150 + Math.floor(Math.random()*31),
+      weapon: ['cricket bat','rolling pin','none'][Math.floor(Math.random()*3)]
+    });
+  }
+  let current = [...suspects];
+
+  document.getElementById('dt-game').innerHTML = `
+    <p>Step 1: Gender</p>
+    <button onclick="dtFilter('female')">Female</button>
+    <button onclick="dtFilter('male')">Male</button>
+  `;
+
+  window.dtFilter = function(gender) {
+    current = current.filter(s => s.gender === gender);
+    document.getElementById('dt-game').innerHTML = `
+      <p>Step 2: Height ≈ 165cm</p>
+      <button onclick="dtHeight(160,170)">160–170 cm</button>
+      <button onclick="dtHeight(155,175)">155–175 cm</button>
+    `;
+  }
+
+  window.dtHeight = function(min,max) {
+    current = current.filter(s => s.height >= min && s.height <= max);
+    document.getElementById('dt-game').innerHTML = `
+      <p>Step 3: Weapon</p>
+      <button onclick="dtWeapon('cricket bat')">Cricket Bat</button>
+      <button onclick="dtWeapon('rolling pin')">Rolling Pin</button>
+    `;
+  }
+
+  window.dtWeapon = function(weapon) {
+    current = current.filter(s => s.weapon === weapon);
+    let html = '';
+    if(current.length===0){
+      html = '<p>No matching suspects. Try again!</p>';
+    } else {
+      html = '<p>Matching suspect(s):</p><ul>';
+      current.forEach(s => { html += `<li>Suspect #${s.id} - ${s.gender}, ${s.height}cm, ${s.weapon}</li>` });
+      html += '</ul><p>🎉 You solved the case!</p>';
+      updateScore(10);
+    }
+    document.getElementById('dt-result').innerHTML = html;
+    document.getElementById('dt-game').innerHTML = '<button onclick="loadDecisionTree()">Restart Game</button>';
+  }
+}
+
+// ------------------ Linear Regression Module ------------------
+function loadLinearRegression() {
+  const content = document.getElementById('tab-content');
+  content.innerHTML = `
+    <h2>Linear Regression 📈</h2>
+    <p>Predict exam score from hours studied:</p>
+    <canvas id="lrCanvas" width="500" height="300"></canvas><br>
+    <label>Hours Studied: <span id="hoursVal">5</span></label>
+    <input type="range" id="hoursSlider" min="0" max="10" value="5">
+    <p id="predScore"></p>
+  `;
+
+  const canvas = document.getElementById('lrCanvas');
+  const ctx = canvas.getContext('2d');
+
+  const points = [
+    {x:1,y:50},{x:2,y:55},{x:3,y:65},{x:4,y:70},{x:5,y:75},
+    {x:6,y:80},{x:7,y:85},{x:8,y:90},{x:9,y:95},{x:10,y:100}
+  ];
+
+  const n = points.length;
+  const sumX = points.reduce((a,p)=>a+p.x,0);
+  const sumY = points.reduce((a,p)=>a+p.y,0);
+  const sumXY = points.reduce((a,p)=>a+p.x*p.y,0);
+  const sumX2 = points.reduce((a,p)=>a+p.x*p.x,0);
+  const m = (n*sumXY - sumX*sumY)/(n*sumX2 - sumX*sumX);
+  const b = (sumY - m*sumX)/n;
+
+  function draw() {
+    ctx.clearRect(0,0,500,300);
+    points.forEach(p => {
+      ctx.fillStyle = 'orange';
+      ctx.beginPath();
+      ctx.arc(p.x*45,300-p.y*2.5,5,0,Math.PI*2);
+      ctx.fill();
+    });
+    ctx.strokeStyle = 'lime';
+    ctx.beginPath();
+    ctx.moveTo(0,300-(m*0+b)*2.5);
+    ctx.lineTo(500,300-(m*10+b)*2.5);
+    ctx.stroke();
+  }
+
+  draw();
+
+  const slider = document.getElementById('hoursSlider');
+  slider.oninput = function() {
+    document.getElementById('hoursVal').textContent = this.value;
+    const pred = m*this.value + b;
+    document.getElementById('predScore').innerHTML = `Predicted Score: <strong>${pred.toFixed(1)}</strong>`;
+  }
+}
+
+// ------------------ kNN Module ------------------
+function loadKNN() {
+  const content = document.getElementById('tab-content');
+  content.innerHTML = `
+    <h2>k-Nearest Neighbors 📊</h2>
+    <p>Click on canvas to add a new point and classify it (k=3)</p>
+    <canvas id="knnCanvas" width="500" height="300"></canvas>
+    <p id="knnInfo"></p>
+  `;
+
+  const canvas = document.getElementById('knnCanvas');
+  const ctx = canvas.getContext('2d');
+  const points = [];
+  const colors = ['red','blue'];
+
+  for(let i=0;i<10;i++){
+    points.push({x: Math.random()*500, y: Math.random()*300, label: i<5?0:1});
+  }
+
+  function drawPoints() {
+    ctx.clearRect(0,0,500,300);
+    points.forEach(p=>{
+      ctx.fillStyle = colors[p.label];
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,7,0,Math.PI*2);
+      ctx.fill();
+    });
+  }
+
+  drawPoints();
+
+  canvas.onclick = function(e) {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const k = 3;
+    const distances = points.map(p=>({p,label:p.label,dist: Math.hypot(p.x-x,p.y-y)}));
+    distances.sort((a,b)=>a.dist-b.dist);
+    const nearest = distances.slice(0,k);
+    const votes = [0,0];
+    nearest.forEach(n=>votes[n.label]++);
+    const newLabel = votes[0]>votes[1]?0:1;
+    points.push({x,y,label:newLabel});
+    drawPoints();
+    document.getElementById('knnInfo').innerHTML = `New point classified as <strong>${colors[newLabel]}</strong>`;
+    updateScore(5);
+  }
+}
+
+// ------------------ Logistic Regression Module ------------------
+function loadLogistic() {
+  const content = document.getElementById('tab-content');
+  content.innerHTML = `
+    <h2>Logistic Regression ⚖️</h2>
+    <p>Predict pass/fail from hours studied (binary classification):</p>
+    <canvas id="logCanvas" width="500" height="300"></canvas><br>
+    <label>Hours Studied: <span id="logHours">5</span></label>
+    <input type="range" id="logSlider" min="0" max="10" value="5">
+    <p id="logProb"></p>
+  `;
+
+  const canvas = document.getElementById('logCanvas');
+  const ctx = canvas.getContext('2d');
+
+  const sigmoid = x => 1/(1+Math.exp(-x));
+  const m = 0.8, b = -2.5; // Simple example coefficients
+
+  function draw() {
+    ctx.clearRect(0,0,500,300);
+    ctx.strokeStyle='lime';
+    ctx.beginPath();
+    for(let x=0;x<=10;x+=0.1){
+      let y = sigmoid(m*x + b);
+      ctx.lineTo(x*50,300-(y*250));
+    }
+    ctx.stroke();
+  }
+  draw();
+
+  const slider = document.getElementById('logSlider');
+  slider.oninput = function() {
+    const val = parseFloat(this.value);
+    document.getElementById('logHours').textContent = val;
+    const prob = sigmoid(m*val+b);
+    document.getElementById('logProb').innerHTML = `Probability of Passing: <strong>${(prob*100).toFixed(1)}%</strong>`;
+  }
+}
+
+// ------------------ SVM Module ------------------
+function loadSVM() {
+  const content = document.getElementById('tab-content');
+  content.innerHTML = `
+    <h2>SVM 🧩</h2>
+    <p>Click to add points; SVM tries to separate two classes visually.</p>
+    <canvas id="svmCanvas" width="500" height="300"></canvas>
+    <p id="svmInfo"></p>
+  `;
+  const canvas = document.getElementById('svmCanvas');
+  const ctx = canvas.getContext('2d');
+  const points = [];
+  const colors=['red','blue'];
+
+  canvas.onclick=function(e){
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX-rect.left;
+    const y = e.clientY-rect.top;
+    const label=Math.random()<0.5?0:1;
+    points.push({x,y,label});
+    drawSVM();
+    updateScore(3);
+  }
+
+  function drawSVM(){
+    ctx.clearRect(0,0,500,300);
+    points.forEach(p=>{
+      ctx.fillStyle=colors[p.label];
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,7,0,2*Math.PI);
+      ctx.fill();
+    });
+    // Draw simple separation line (approximate)
+    ctx.strokeStyle='lime';
+    ctx.beginPath();
+    ctx.moveTo(0,150); ctx.lineTo(500,150);
+    ctx.stroke();
+  }
+}
+
+// ------------------ Random Forest Module ------------------
+function loadRandomForest() {
+  const content = document.getElementById('tab-content');
+  content.innerHTML = `
+    <h2>Random Forest 🌲</h2>
+    <p>Click to predict if a point is class A (red) or B (blue) using multiple trees.</p>
+    <canvas id="rfCanvas" width="500" height="300"></canvas>
+    <p id="rfInfo"></p>
+  `;
+  const canvas = document.getElementById('rfCanvas');
+  const ctx = canvas.getContext('2d');
+  const points=[];
+  const colors=['red','blue'];
+
+  canvas.onclick=function(e){
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX-rect.left;
+    const y = e.clientY-rect.top;
+    // Simulate 5 trees voting
+    const votes=[0,0];
+    for(let i=0;i<5;i++){
+      votes[Math.random()<0.5?0:1]++;
+    }
+    const label = votes[0]>votes[1]?0:1;
+    points.push({x,y,label});
+    drawRF();
+    document.getElementById('rfInfo').innerHTML = `Random Forest Prediction: <strong>${colors[label]}</strong>`;
+    updateScore(4);
+  }
+
+  function drawRF(){
+    ctx.clearRect(0,0,500,300);
+    points.forEach(p=>{
+      ctx.fillStyle=colors[p.label];
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,7,0,2*Math.PI);
+      ctx.fill();
+    });
+  }
+}
+
+// Initialize first tab
+showTab('decisionTree');
+</script>
+</body>
+</html>

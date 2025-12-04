@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Space Mission Decision Tree</title>
+<style>
+body { font-family: Arial, sans-serif; background-color: #0b0c2a; color: #ffffff; text-align: center; padding: 30px; }
+button { padding: 12px 20px; margin: 8px; border: none; border-radius: 5px; background-color: #ff6600; color: white; cursor: pointer; font-size: 16px; }
+button:hover { background-color: #ff8533; }
+#game-container { max-width: 600px; margin: auto; padding: 20px; background-color: #1a1a3d; border-radius: 10px; }
+#result { margin-top: 20px; padding: 10px; background-color: #26266e; border-radius: 5px; }
+</style>
+</head>
+<body>
+<div id="game-container">
+<h1>🚀 Space Mission Decision Tree</h1>
+<div id="game">
+<h2>Step 1: Choose Your Spaceship</h2>
+<p>Select the type of spaceship for your mission:</p>
+<button onclick="chooseShip('Shuttle')">Shuttle</button>
+<button onclick="chooseShip('Rocket')">Rocket</button>
+<button onclick="chooseShip('Drone')">Drone</button>
+</div>
+<div id="result"></div>
+</div>
+
+<script>
+let mission = {};
+
+function chooseShip(ship) {
+    mission.ship = ship;
+    document.getElementById('game').innerHTML = `
+        <h2>Step 2: Choose Mission Target</h2>
+        <p>Where do you want to go?</p>
+        <button onclick="chooseTarget('Mars')">Mars</button>
+        <button onclick="chooseTarget('Moon')">Moon</button>
+        <button onclick="chooseTarget('Asteroid')">Asteroid</button>
+    `;
+}
+
+function chooseTarget(target) {
+    mission.target = target;
+    document.getElementById('game').innerHTML = `
+        <h2>Step 3: Choose Crew Size</h2>
+        <p>How many astronauts will go?</p>
+        <button onclick="chooseCrew(1)">Solo</button>
+        <button onclick="chooseCrew(3)">3</button>
+        <button onclick="chooseCrew(5)">5</button>
+    `;
+}
+
+function chooseCrew(size) {
+    mission.crew = size;
+    let outcome = '';
+    // Simple branching logic for outcomes
+    if (mission.ship === 'Drone') {
+        outcome = 'The mission is automated! Success is guaranteed.';
+    } else if (mission.target === 'Mars' && size > 3) {
+        outcome = 'The ship is overloaded for Mars. Mission delayed!';
+    } else if (mission.ship === 'Rocket' && mission.target === 'Moon') {
+        outcome = 'Perfect combo! Mission success!';
+    } else {
+        outcome = 'Mission completed with minor challenges.';
+    }
+
+    document.getElementById('result').innerHTML = `
+        <h2>🛰️ Mission Outcome</h2>
+        <p>Spaceship: ${mission.ship}</p>
+        <p>Target: ${mission.target}</p>
+        <p>Crew Size: ${mission.crew}</p>
+        <p><strong>Outcome: ${outcome}</strong></p>
+    `;
+
+    document.getElementById('game').innerHTML = '<button onclick="restartMission()">🔄 Start New Mission</button>';
+}
+
+function restartMission() {
+    mission = {};
+    document.getElementById('result').innerHTML = '';
+    document.getElementById('game').innerHTML = `
+        <h2>Step 1: Choose Your Spaceship</h2>
+        <p>Select the type of spaceship for your mission:</p>
+        <button onclick="chooseShip('Shuttle')">Shuttle</button>
+        <button onclick="chooseShip('Rocket')">Rocket</button>
+        <button onclick="chooseShip('Drone')">Drone</button>
+    `;
+}
+</script>
+</body>
+</html>
