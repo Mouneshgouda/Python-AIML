@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>DBSCAN Animated Demo</title>
+<style>
+body { background:#0e0f14; color:white; font-family:Arial; text-align:center; padding:20px;}
+h1 { color:#25c5ff; }
+canvas { background:#111; border:2px solid #25c5ff; border-radius:12px; margin-top:15px;}
+button { padding:10px 20px; margin:5px; background:#25c5ff; color:#000; border:none; border-radius:6px; cursor:pointer; font-weight:bold;}
+button:hover { background:#1b9dc9; }
+#speedVal { color:#0ff; font-weight:bold; }
+</style>
+</head>
+<body>
+
+<h1>DBSCAN Animated Demo</h1>
+
+<div>
+<button onclick="resetDBSCAN()">Reset</button>
+<button onclick="generateRandom(50)">Random Points</button>
+</div>
+
+<br>
+Epsilon: <input type="range" id="epsilon" min="5" max="100" value="40"> <span id="epsVal">40</span>
+MinPts: <input type="number" id="minPts" value="3" min="1" max="10">
+<br><br>
+Speed: <input type="range" id="speed" min="1" max="10" value="5"> <span id="speedVal">5</span>
+
+<h3 id="iterText">Iteration: 0</h3>
+
+<canvas id="canvas" width="700" height="450"></canvas>
+
+<div style="margin-top:10px;">
+<button onclick="nextStep()">Next Step</button>
+<button onclick="runToCompletion()">Run to Completion</button>
+</div>
+
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+let points = [];
+let iteration = 0;
+let running = false;
+let speed = 5;
+let clusterId = 0;
+let processingQueue = [];
+let currentPointIndex = 0;
+
+const colors = ["#ff4081","#00e5ff","#00ff6a","#ffa000","#ffea00","#ff00ff"];
+
+let epsilon = parseInt(document.getElementById("epsilon").value);
+let minPts = parseInt(document.getElementById("minPts").value);
+
+document.getElementById("speed").oninput = function(){ speed=parseInt(this.value); document.getElementById("speedVal").innerText=speed; };
+document.getElementById("epsilon").oninput = function(){ epsilon=parseInt(this.value); document.getElementById("epsVal").innerText=epsilon; };
+document.getElementById("minPts").oninput = function(){ minPts=parseInt(this.value); };
+
+// Click to add points
+canvas.addEventListener("click",(e)=>{
+    let r = canvas.getBoundingClientRect();
+    points.push({x:e.clientX-r.left, y:e.clientY-r.top, cluster:-1, visited:false, expanding:false, radius:0});
+    draw();
+});
+
+// Draw points and expanding circles
+function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    for(let p of points){
+        if(p.expanding){
+            ctx.beginPath();
+            ctx.arc(p.x,p.y,p.radius,0,Math.PI*2);
+            ctx.strokeStyle=colors[p.cluster%colors.length]+'88';
+            ctx.lineWidth=2;
+            ctx.stroke();
+        }
+    }
+
+    for(let p of points){
+        ctx.beginPath();
+        ctx.arc(p.x,p.y,7,0,Math.PI*2);
+        ctx.shadowBlur=15;
+        if(p.cluster===-1 && p.visited) ctx.shadowColor="red"; // noise
+        else if(p.cluster>=0) ctx.shadowColor = colors[p.cluster%colors.length];
+        else ctx.shadowColor = "white";
+        ctx.fillStyle=ctx.shadowColor;
+        ctx.fill();
+    }
+    ctx.shadowBlur=0;
+}
+
+// Region query
+function regionQuery(p){
+    return points.filter(q=>Math.hypot(p.x-q.x,p.y-q.y)<=epsilon);
+}
+
+// One DBSCAN step
+function dbscanStep(){
+    if(currentPointIndex>=points.length){
+        running=false;
+        return;
+    }
+    let p = points[currentPointIndex];
+    if(!p.visited){
+        p.visited=true;
+        let neighbors = regionQuery(p);
+        if(neighbors.length<minPts){
+            p.cluster=-1; // noise
+        } else {
+            clusterId++;
+            p.cluster=clusterId;
+            processingQueue = neighbors.filter(n=>!n.visited);
+            for(let n of processingQueue) n.expanding=true;
+        }
+    }
+
+    if(processingQueue.length>0){
+        let q = processingQueue.shift();
+        let neighbors = regionQuery(q);
+        if(neighbors.length>=minPts){
+            for(let n of neighbors){
+                if(n.cluster===-1 || n.cluster===undefined){
+                    n.cluster=clusterId;
+                    if(!n.visited) processingQueue.push(n);
+                }
+            }
+        }
+        q.expanding=false;
+    } else {
+        currentPointIndex++;
+    }
+
+    iteration++;
+    document.getElementById("iterText").innerText="Iteration: "+iteration;
+    draw();
+}
+
+// Step button
+function nextStep(){
+    if(points.length===0) return;
+    dbscanStep();
+}
+
+// Run automatically
+function runToCompletion(){
+    running=true;
+    function step(){
+        if(!running) return;
+        let allProcessed = points.every(p=>p.visited);
+        if(allProcessed) return;
+        dbscanStep();
+        setTimeout(()=>requestAnimationFrame(step), 200/speed);
+    }
+    step();
+}
+
+// Reset
+function resetDBSCAN(){
+    running=false;
+    iteration=0;
+    clusterId=0;
+    processingQueue=[];
+    currentPointIndex=0;
+    points=[];
+    document.getElementById("iterText").innerText="Iteration: 0";
+    draw();
+}
+
+// Generate random points
+function generateRandom(n){
+    points=[];
+    for(let i=0;i<n;i++){
+        points.push({x:Math.random()*canvas.width, y:Math.random()*canvas.height, cluster:-1, visited:false, expanding:false, radius:0});
+    }
+    draw();
+}
+
+draw();
+</script>
+
+<p style="margin-top:15px; font-size:0.9em; color:gray;">
+Click canvas to add points or generate random points. Adjust epsilon and MinPts, then use Next Step or Run to Completion.
+</p>
+
+</body>
+</html>
