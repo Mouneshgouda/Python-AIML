@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>K-Means Interactive Visualization</title>
+<style>
+body {
+    background: #0e0f14;
+    color: white;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    padding: 20px;
+}
+h1 { color: #25c5ff; }
+canvas { background: #111; border:2px solid #25c5ff; border-radius:12px; margin-top:15px; }
+button {
+    padding:10px 20px; margin:5px; background:#25c5ff; color:#000;
+    border:none; border-radius:6px; cursor:pointer; font-weight:bold;
+}
+button:hover { background:#1b9dc9; }
+#speedVal { color:#0ff; font-weight:bold; }
+</style>
+</head>
+<body>
+
+<h1>K-Means Interactive Demo</h1>
+
+<div>
+    <button onclick="setK(2)">2 Clusters</button>
+    <button onclick="setK(3)">3 Clusters</button>
+    <button onclick="setK(4)">4 Clusters</button>
+    <button onclick="setK(5)">5 Clusters</button>
+    <button onclick="resetKM()">Reset</button>
+</div>
+
+<br>
+Initialization:
+<select id="initMethod">
+  <option value="random">Random</option>
+  <option value="farthest">Farthest-point (k-means++)</option>
+</select>
+
+<br><br>
+Speed: <input type="range" id="speed" min="1" max="10" value="5"> 
+<span id="speedVal">5</span>
+
+<h3 id="iterText">Iteration: 0</h3>
+
+<canvas id="canvas" width="700" height="450"></canvas>
+
+<div style="margin-top:10px;">
+    <button onclick="nextStep()">Next Step</button>
+    <button onclick="runToCompletion()">Run to Completion</button>
+</div>
+
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+let points = [];
+let centroids = [];
+let clusters = [];
+let iteration = 0;
+let K = 3;
+let running = false;
+let speed = 5;
+let animationId;
+
+const colors = ["#ff4081","#00e5ff","#00ff6a","#ffa000","#ffea00","#ff00ff"];
+
+document.getElementById("speed").oninput = function(){
+    speed = parseInt(this.value);
+    document.getElementById("speedVal").innerText = speed;
+};
+
+canvas.addEventListener("click",(e)=>{
+    let r = canvas.getBoundingClientRect();
+    points.push({x:e.clientX - r.left, y:e.clientY - r.top, cluster:-1});
+    draw();
+});
+
+function setK(k){
+    K=k;
+    resetKM();
+}
+
+function resetKM(){
+    cancelAnimationFrame(animationId);
+    points=[];
+    centroids=[];
+    iteration=0;
+    running=false;
+    document.getElementById("iterText").innerText="Iteration: 0";
+    draw();
+}
+
+// Compute distance squared
+function dist2(p1,p2){return (p1.x-p2.x)**2 + (p1.y-p2.y)**2;}
+
+// Initialize centroids
+function initCentroids(){
+    centroids=[];
+    if(points.length===0) return;
+    const method = document.getElementById("initMethod").value;
+    if(method==="random"){
+        let shuffled = [...points].sort(()=>Math.random()-0.5);
+        for(let i=0;i<K;i++){
+            centroids.push({...shuffled[i], cluster:i});
+        }
+    } else if(method==="farthest"){
+        let first = points[Math.floor(Math.random()*points.length)];
+        centroids.push({...first, cluster:0});
+        while(centroids.length<K){
+            let next=null, maxD=-1;
+            for(let p of points){
+                let d = Math.min(...centroids.map(c=>dist2(p,c)));
+                if(d>maxD){
+                    maxD=d;
+                    next=p;
+                }
+            }
+            centroids.push({...next, cluster:centroids.length});
+        }
+    }
+}
+
+// Assign points to nearest centroid
+function assignClusters(){
+    for(let p of points){
+        let best=-1, bestD=1e12;
+        for(let c of centroids){
+            let d=dist2(p,c);
+            if(d<bestD){ bestD=d; best=c.cluster; }
+        }
+        p.cluster=best;
+    }
+}
+
+// Move centroids smoothly
+function moveCentroids(){
+    for(let c of centroids){
+        let assigned = points.filter(p=>p.cluster===c.cluster);
+        if(assigned.length===0) continue;
+        let avgX = assigned.reduce((s,p)=>s+p.x,0)/assigned.length;
+        let avgY = assigned.reduce((s,p)=>s+p.y,0)/assigned.length;
+        c.x += (avgX - c.x)*0.2*speed/5;
+        c.y += (avgY - c.y)*0.2*speed/5;
+    }
+}
+
+// Draw Voronoi-like cluster shading
+function drawVoronoi(){
+    for(let y=0;y<canvas.height;y+=8){
+        for(let x=0;x<canvas.width;x+=8){
+            let best=-1, bestD=1e12;
+            for(let c of centroids){
+                let d=(c.x-x)**2 + (c.y-y)**2;
+                if(d<bestD){ bestD=d; best=c.cluster; }
+            }
+            ctx.fillStyle=colors[best%colors.length]+'22';
+            ctx.fillRect(x,y,8,8);
+        }
+    }
+}
+
+// Draw all
+function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    if(centroids.length>0) drawVoronoi();
+
+    for(let p of points){
+        ctx.beginPath();
+        ctx.arc(p.x,p.y,7,0,Math.PI*2);
+        ctx.shadowBlur=15;
+        ctx.shadowColor = p.cluster>=0? colors[p.cluster%colors.length]:'white';
+        ctx.fillStyle=ctx.shadowColor;
+        ctx.fill();
+    }
+
+    for(let c of centroids){
+        ctx.fillStyle=colors[c.cluster%colors.length];
+        ctx.shadowBlur=20;
+        ctx.shadowColor = ctx.fillStyle;
+        ctx.fillRect(c.x-8,c.y-8,16,16);
+    }
+    ctx.shadowBlur=0;
+}
+
+// One iteration step
+function nextStep(){
+    if(points.length===0) return;
+    if(centroids.length===0) initCentroids();
+    iteration++;
+    assignClusters();
+    moveCentroids();
+    document.getElementById("iterText").innerText="Iteration: "+iteration;
+    draw();
+}
+
+// Run automatically until convergence
+function runToCompletion(){
+    running=true;
+    if(centroids.length===0) initCentroids();
+    function step(){
+        let prev = centroids.map(c=>({x:c.x,y:c.y}));
+        nextStep();
+        let maxMove = Math.max(...centroids.map((c,i)=>Math.hypot(c.x-prev[i].x, c.y-prev[i].y)));
+        if(maxMove>1 && running) animationId=requestAnimationFrame(step);
+    }
+    step();
+}
+</script>
+
+<p style="margin-top:15px; font-size:0.9em; color:gray;">
+Click canvas to add points. Choose K and initialization. Use Next Step or Run to Completion to see clustering.
+</p>
+</body>
+</html>
