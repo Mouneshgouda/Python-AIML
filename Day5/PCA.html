@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PCA Animated Demo</title>
+<style>
+body { background:#0e0f14; color:white; font-family:Arial; text-align:center; padding:20px;}
+h1 { color:#25c5ff; }
+canvas { background:#111; border:2px solid #25c5ff; border-radius:12px; margin-top:15px;}
+button { padding:10px 20px; margin:5px; background:#25c5ff; color:#000; border:none; border-radius:6px; cursor:pointer; font-weight:bold;}
+button:hover { background:#1b9dc9; }
+#speedVal { color:#0ff; font-weight:bold; }
+</style>
+</head>
+<body>
+
+<h1>PCA Animated Demo</h1>
+
+<div>
+<button onclick="resetPCA()">Reset</button>
+<button onclick="generateRandom(50)">Random Points</button>
+<button onclick="submitPCA()">Project PCA</button>
+</div>
+
+<br>
+Speed: <input type="range" id="speed" min="1" max="10" value="5"> <span id="speedVal">5</span>
+
+<h3 id="iterText">Iterations: 0</h3>
+
+<canvas id="canvas" width="700" height="450"></canvas>
+
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+let points = [];
+let iteration = 0;
+let running = false;
+let speed = 5;
+
+// Neon colors
+const pointColor = "#00e5ff";
+const projColor = "#ff4081";
+const evColor = "#00ff6a";
+
+let eigenvectors = null;
+let centerX = canvas.width/2;
+let centerY = canvas.height/2;
+let scale = 120;
+
+document.getElementById("speed").oninput = function(){
+    speed = parseInt(this.value);
+    document.getElementById("speedVal").innerText = speed;
+};
+
+// Click to add points
+canvas.addEventListener("click",(e)=>{
+    let r = canvas.getBoundingClientRect();
+    points.push({
+        x:e.clientX-r.left,
+        y:e.clientY-r.top,
+        displayX:e.clientX-r.left,
+        displayY:e.clientY-r.top,
+        projX:e.clientX-r.left,
+        projY:e.clientY-r.top
+    });
+    draw();
+});
+
+// Generate random points
+function generateRandom(n){
+    points = [];
+    for(let i=0;i<n;i++){
+        let px = Math.random()*canvas.width;
+        let py = Math.random()*canvas.height;
+        points.push({x:px, y:py, displayX:px, displayY:py, projX:px, projY:py});
+    }
+    draw();
+}
+
+// Draw function
+function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    // Draw eigenvectors
+    if(eigenvectors){
+        for(let ev of eigenvectors){
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(centerX + ev[0]*scale, centerY + ev[1]*scale);
+            ctx.strokeStyle = evColor;
+            ctx.lineWidth = 3;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = evColor;
+            ctx.stroke();
+        }
+    }
+
+    // Draw original points
+    for(let p of points){
+        ctx.beginPath();
+        ctx.arc(p.x,p.y,7,0,Math.PI*2);
+        ctx.shadowBlur=15;
+        ctx.shadowColor=pointColor;
+        ctx.fillStyle=pointColor;
+        ctx.fill();
+    }
+
+    // Draw projected points
+    for(let p of points){
+        ctx.beginPath();
+        ctx.arc(p.displayX,p.displayY,5,0,Math.PI*2);
+        ctx.shadowBlur=10;
+        ctx.shadowColor=projColor;
+        ctx.fillStyle=projColor;
+        ctx.fill();
+    }
+    ctx.shadowBlur=0;
+}
+
+// Compute PCA and set projections
+function computePCA(){
+    if(points.length<2) return;
+
+    // Mean
+    let meanX=0, meanY=0;
+    for(let p of points){ meanX+=p.x; meanY+=p.y; }
+    meanX/=points.length; meanY/=points.length;
+
+    // Covariance
+    let covXX=0, covXY=0, covYY=0;
+    for(let p of points){
+        let dx=p.x-meanX;
+        let dy=p.y-meanY;
+        covXX+=dx*dx;
+        covXY+=dx*dy;
+        covYY+=dy*dy;
+    }
+    covXX/=points.length; covXY/=points.length; covYY/=points.length;
+
+    // Eigenvectors
+    let trace = covXX+covYY;
+    let det = covXX*covYY - covXY*covXY;
+    let lambda1 = trace/2 + Math.sqrt((trace*trace)/4 - det);
+    let lambda2 = trace/2 - Math.sqrt((trace*trace)/4 - det);
+
+    let ev1 = [covXY, lambda1-covXX];
+    let ev2 = [covXY, lambda2-covXX];
+
+    let norm1=Math.hypot(ev1[0],ev1[1]);
+    let norm2=Math.hypot(ev2[0],ev2[1]);
+    ev1=[ev1[0]/norm1, ev1[1]/norm1];
+    ev2=[ev2[0]/norm2, ev2[1]/norm2];
+
+    eigenvectors=[ev1, ev2];
+
+    // Set projected positions along first eigenvector
+    for(let p of points){
+        let dx=p.x-meanX, dy=p.y-meanY;
+        let dot = dx*ev1[0]+dy*ev1[1];
+        p.projX=centerX + dot*ev1[0];
+        p.projY=centerY + dot*ev1[1];
+    }
+}
+
+// Animate points moving to projection
+function animate(){
+    let moving=false;
+    for(let p of points){
+        let dx=p.projX - p.displayX;
+        let dy=p.projY - p.displayY;
+        if(Math.abs(dx)>0.5 || Math.abs(dy)>0.5){
+            p.displayX += dx*0.1;
+            p.displayY += dy*0.1;
+            moving=true;
+        }
+    }
+    draw();
+    iteration++;
+    document.getElementById("iterText").innerText="Iteration: "+iteration;
+    if(running && moving){
+        setTimeout(()=>requestAnimationFrame(animate), 1000/speed);
+    } else {
+        running=false;
+    }
+}
+
+// Controls
+function submitPCA(){
+    if(points.length<2) return alert("Add at least 2 points!");
+    iteration=0;
+    running=true;
+    computePCA();
+    animate();
+}
+
+function nextStep(){ submitPCA(); }
+function runToCompletion(){ submitPCA(); }
+function resetPCA(){ running=false; iteration=0; points=[]; eigenvectors=null; document.getElementById("iterText").innerText="Iteration: 0"; draw(); }
+
+draw();
+</script>
+
+<p style="margin-top:15px; font-size:0.9em; color:gray;">
+Click canvas to add points or generate random points. Hit "Project PCA" to animate projection along first principal component.
+</p>
+
+</body>
+</html>

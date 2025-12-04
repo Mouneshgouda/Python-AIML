@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Hierarchical Clustering Demo</title>
+<style>
+body { background:#0e0f14; color:white; font-family:Arial; text-align:center; padding:20px;}
+h1 { color:#25c5ff; }
+canvas { background:#111; border:2px solid #25c5ff; border-radius:12px; margin-top:15px;}
+button { padding:10px 20px; margin:5px; background:#25c5ff; color:#000; border:none; border-radius:6px; cursor:pointer; font-weight:bold;}
+button:hover { background:#1b9dc9; }
+#speedVal { color:#0ff; font-weight:bold; }
+</style>
+</head>
+<body>
+
+<h1>Hierarchical Clustering Demo</h1>
+
+<div>
+<button onclick="resetHC()">Reset</button>
+<button onclick="generateRandom(30)">Random Points</button>
+<button onclick="startHC()">Start Clustering</button>
+</div>
+
+<br>
+Speed: <input type="range" id="speed" min="1" max="10" value="5"> <span id="speedVal">5</span>
+
+<h3 id="iterText">Iteration: 0</h3>
+
+<canvas id="canvas" width="700" height="450"></canvas>
+
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+let points = [];
+let clusters = [];
+let iteration = 0;
+let running = false;
+let speed = 5;
+
+// Neon colors
+const pointColor = "#00e5ff";
+const mergeColor = "#ff4081";
+
+document.getElementById("speed").oninput = function(){
+    speed = parseInt(this.value);
+    document.getElementById("speedVal").innerText = speed;
+};
+
+// Click to add points
+canvas.addEventListener("click",(e)=>{
+    let r = canvas.getBoundingClientRect();
+    points.push({x:e.clientX-r.left, y:e.clientY-r.top});
+    draw();
+});
+
+// Generate random points
+function generateRandom(n){
+    points=[];
+    for(let i=0;i<n;i++){
+        points.push({x:Math.random()*canvas.width, y:Math.random()*canvas.height});
+    }
+    draw();
+}
+
+// Draw function
+function draw(mergeStep=null){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    // Draw clusters lines
+    if(clusters.length>1){
+        for(let i=0;i<clusters.length;i++){
+            for(let j=i+1;j<clusters.length;j++){
+                let c1=clusters[i];
+                let c2=clusters[j];
+                ctx.beginPath();
+                ctx.moveTo(c1.x, c1.y);
+                ctx.lineTo(c2.x, c2.y);
+                ctx.strokeStyle=mergeColor;
+                ctx.lineWidth=1;
+                ctx.shadowBlur=10;
+                ctx.shadowColor=mergeColor;
+                ctx.stroke();
+            }
+        }
+    }
+
+    // Draw points
+    for(let p of points){
+        ctx.beginPath();
+        ctx.arc(p.x,p.y,7,0,Math.PI*2);
+        ctx.shadowBlur=15;
+        ctx.shadowColor=pointColor;
+        ctx.fillStyle=pointColor;
+        ctx.fill();
+    }
+    ctx.shadowBlur=0;
+}
+
+// Compute Euclidean distance
+function distance(a,b){
+    let dx=a.x-b.x;
+    let dy=a.y-b.y;
+    return Math.sqrt(dx*dx + dy*dy);
+}
+
+// Initialize clusters
+function initClusters(){
+    clusters = points.map(p=>({x:p.x, y:p.y, points:[p]}));
+    iteration=0;
+    document.getElementById("iterText").innerText="Iteration: "+iteration;
+}
+
+// Agglomerative clustering step
+function clusterStep(){
+    if(clusters.length<=1) return false;
+
+    // Find two closest clusters
+    let minD = Infinity;
+    let c1=-1, c2=-1;
+    for(let i=0;i<clusters.length;i++){
+        for(let j=i+1;j<clusters.length;j++){
+            let d = distance(clusters[i], clusters[j]);
+            if(d<minD){ minD=d; c1=i; c2=j; }
+        }
+    }
+
+    // Merge clusters
+    let merged = {
+        x: (clusters[c1].x*clusters[c1].points.length + clusters[c2].x*clusters[c2].points.length)/(clusters[c1].points.length + clusters[c2].points.length),
+        y: (clusters[c1].y*clusters[c1].points.length + clusters[c2].y*clusters[c2].points.length)/(clusters[c1].points.length + clusters[c2].points.length),
+        points: clusters[c1].points.concat(clusters[c2].points)
+    };
+    clusters.splice(c2,1);
+    clusters.splice(c1,1);
+    clusters.push(merged);
+
+    iteration++;
+    document.getElementById("iterText").innerText="Iteration: "+iteration;
+    return true;
+}
+
+// Animate hierarchical clustering
+function animateHC(){
+    let changed = clusterStep();
+    draw();
+    if(running && changed){
+        setTimeout(()=>requestAnimationFrame(animateHC), 1000/speed);
+    } else {
+        running=false;
+    }
+}
+
+// Controls
+function startHC(){
+    if(points.length<2) return alert("Add at least 2 points!");
+    running=true;
+    initClusters();
+    animateHC();
+}
+
+function resetHC(){
+    running=false;
+    points=[];
+    clusters=[];
+    iteration=0;
+    document.getElementById("iterText").innerText="Iteration: 0";
+    draw();
+}
+
+draw();
+</script>
+
+<p style="margin-top:15px; font-size:0.9em; color:gray;">
+Click canvas to add points or generate random points. Click "Start Clustering" to animate hierarchical merges step by step.
+</p>
+
+</body>
+</html>
