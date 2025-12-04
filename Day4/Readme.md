@@ -1,3 +1,8 @@
+## Day 4 Colab Link
+
+https://colab.research.google.com/drive/1H8D2ha6vyiSCH9WHPyTGKTwtW3iuDpwz?usp=sharing
+
+
 ## KNN
 
 https://www.luseratech.com/knn-visual
