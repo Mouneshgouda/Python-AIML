@@ -11,7 +11,7 @@ https://medium.com/@sumbatilinda/deep-learning-part-1-understanding-basic-neural
 
 ## App.py
 
-```
+```python
 import streamlit as st
 import numpy as np
 from PIL import Image
